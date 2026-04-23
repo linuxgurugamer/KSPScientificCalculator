@@ -1,30 +1,16 @@
+using ClickThroughFix;
+using KSP.UI.Screens;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using UnityEngine;
-using KSP.UI.Screens;
-using ClickThroughFix;
 using ToolbarControl_NS;
+using UnityEngine;
 
 namespace KSPScientificCalculator
 {
-    [KSPAddon(KSPAddon.Startup.MainMenu, true)]
-    public class RegisterToolbar : MonoBehaviour
-    {
-        public void Start()
-        {
-            ToolbarControl.RegisterMod(CalculatorCore.MODID, CalculatorCore.MODNAME);
-            DontDestroyOnLoad(this);
-        }
-    }
 
-    [KSPAddon(KSPAddon.Startup.Flight, false)]
-    public class CalculatorFlight : CalculatorCore { }
-
-    [KSPAddon(KSPAddon.Startup.EditorAny, false)]
-    public class CalculatorEditor : CalculatorCore { }
-
+    [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
     public class CalculatorCore : MonoBehaviour
     {
         internal const string MODID = "KSPScientificCalculator_NS";
@@ -35,7 +21,7 @@ namespace KSPScientificCalculator
         private const float DefaultWidth = 370f;
         private const float DefaultHeight = 470f;
 
-        private ToolbarControl toolbarControl;
+        static private  ToolbarControl toolbarControl;
         private Rect windowRect = new Rect(300f, 120f, DefaultWidth, DefaultHeight);
         private int windowId;
         private bool visible;
@@ -47,11 +33,12 @@ namespace KSPScientificCalculator
         private string lastAnswer = "0";
         private Vector2 historyScroll;
         private readonly List<string> history = new List<string>();
-        private bool stylesInitialized;
-        private GUIStyle displayStyle;
-        private GUIStyle resultStyle;
-        private GUIStyle historyStyle;
-        private GUIStyle statusStyle;
+
+        internal static GUIStyle displayStyle;
+        internal static GUIStyle resultStyle;
+        internal static GUIStyle historyStyle;
+        internal static GUIStyle statusStyle;
+
         private string pendingInsert;
         private bool pendingEvaluate;
         private bool pendingBackspace;
@@ -71,12 +58,17 @@ namespace KSPScientificCalculator
         public void Start()
         {
             CreateToolbarButton();
+            GameEvents.onGameSceneLoadRequested.Add(onGameSceneLoadRequested);
         }
 
+        void onGameSceneLoadRequested(GameScenes gs)
+        {
+            toolbarControl.SetFalse(true);
+        }
         public void OnDestroy()
         {
             SaveSettings();
-            DestroyToolbarButton();
+            GameEvents.onGameSceneLoadRequested.Remove(onGameSceneLoadRequested);
         }
 
         public void OnApplicationQuit()
@@ -95,7 +87,6 @@ namespace KSPScientificCalculator
             if (!visible)
                 return;
 
-            InitializeStyles();
             //GUI.skin = HighLogic.Skin;
             windowRect = ClickThruBlocker.GUILayoutWindow(windowId, windowRect, DrawWindow, WINDOW_TITLE);
             ClampWindowToScreen();
@@ -110,7 +101,8 @@ namespace KSPScientificCalculator
             toolbarControl.AddToAllToolbars(
                 OnToolbarTrue,
                 OnToolbarFalse,
-                ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB,
+                ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB | 
+                    ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.MAPVIEW | ApplicationLauncher.AppScenes.TRACKSTATION,
                 MODID,
                 "ScientificCalculatorButton",
                 "KSPScientificCalculator/PluginData/Textures/icon_38",
@@ -118,16 +110,6 @@ namespace KSPScientificCalculator
                 MODNAME
             );
         }
-
-        private void DestroyToolbarButton()
-        {
-            if (toolbarControl != null)
-            {
-                Destroy(toolbarControl);
-                toolbarControl = null;
-            }
-        }
-
         private void OnToolbarTrue() { visible = true; }
         private void OnToolbarFalse() { visible = false; }
 
@@ -292,7 +274,7 @@ namespace KSPScientificCalculator
 
         private void HandleKeyboard()
         {
-            if (Input.GetKeyDown(KeyCode.F10)) { ToggleVisible(); return; }
+            //if (Input.GetKeyDown(KeyCode.F10)) { ToggleVisible(); return; }
             string input = Input.inputString;
             if (!string.IsNullOrEmpty(input))
             {
@@ -367,15 +349,6 @@ namespace KSPScientificCalculator
             return value.ToString("0.###############", CultureInfo.InvariantCulture);
         }
 
-        private void InitializeStyles()
-        {
-            if (stylesInitialized) return;
-            displayStyle = new GUIStyle(HighLogic.Skin.label) { alignment = TextAnchor.MiddleRight, fontSize = 16, wordWrap = true };
-            resultStyle = new GUIStyle(HighLogic.Skin.label) { alignment = TextAnchor.MiddleRight, fontSize = 20, fontStyle = FontStyle.Bold };
-            historyStyle = new GUIStyle(HighLogic.Skin.button) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
-            statusStyle = new GUIStyle(HighLogic.Skin.label) { alignment = TextAnchor.MiddleLeft, fontSize = 12, wordWrap = true };
-            stylesInitialized = true;
-        }
 
         private void ClampWindowToScreen()
         {
