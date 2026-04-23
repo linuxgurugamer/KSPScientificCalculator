@@ -1,0 +1,7 @@
+Build output goes here:
+
+GameData/KSPScientificCalculator/Plugins/KSPScientificCalculator.dll
+
+This zip contains the complete source and release folder layout,
+but not a prebuilt DLL because KSP/Unity reference assemblies are not
+available in this environment.
