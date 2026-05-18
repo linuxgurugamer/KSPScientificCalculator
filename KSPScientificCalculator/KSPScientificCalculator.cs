@@ -21,7 +21,7 @@ namespace KSPScientificCalculator
         private const float DefaultWidth = 370f;
         private const float DefaultHeight = 470f;
 
-        static private  ToolbarControl toolbarControl;
+        static private ToolbarControl toolbarControl;
         private Rect windowRect = new Rect(300f, 120f, DefaultWidth, DefaultHeight);
         private int windowId;
         private bool visible;
@@ -101,7 +101,7 @@ namespace KSPScientificCalculator
             toolbarControl.AddToAllToolbars(
                 OnToolbarTrue,
                 OnToolbarFalse,
-                ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB | 
+                ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.VAB |
                     ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.MAPVIEW | ApplicationLauncher.AppScenes.TRACKSTATION,
                 MODID,
                 "ScientificCalculatorButton",
@@ -133,7 +133,7 @@ namespace KSPScientificCalculator
             DrawStatusArea();
             GUILayout.EndVertical();
             ProcessPendingActions();
-            GUI.DragWindow(new Rect(0, 0, 10000, 22));
+            GUI.DragWindow();
         }
 
         private void DrawTopBar()
@@ -178,11 +178,23 @@ namespace KSPScientificCalculator
                 new ButtonDef("sqrt(", "sqrt("));
 
             DrawButtonRow(buttonHeight, buttonWidth,
-                new ButtonDef("(", "("),
-                new ButtonDef(")", ")"),
+                new ButtonDef("ln(", "ln("),        // natural log
+                new ButtonDef("log(", "log("),      // log base 10
+                new ButtonDef("floor(", "floor("),
+                new ButtonDef("ceil(", "ceil("),
+                new ButtonDef("round(", "round("));
+
+            DrawButtonRow(buttonHeight, buttonWidth,
+                new ButtonDef("10^(", "10^("),
+                new ButtonDef("x!", "fact("),
+                new ButtonDef("rand(", "rand("),
                 new ButtonDef("abs(", "abs("),
-                new ButtonDef("exp(", "exp("),
-                new ButtonDef("^", "^"));
+                new ButtonDef("exp(", "exp("));
+
+            DrawButtonRow(buttonHeight, buttonWidth,
+                new ButtonDef("^", "^"),
+                new ButtonDef("(", "("),
+                new ButtonDef(")", ")"));
 
             DrawButtonRow(buttonHeight, buttonWidth,
                 new ButtonDef("7", "7"),
@@ -281,7 +293,7 @@ namespace KSPScientificCalculator
                 for (int i = 0; i < input.Length; i++)
                 {
                     char c = input[i];
-                    if (char.IsDigit(c) || c == '.' || c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '(' || c == ')' || c == '^')
+                    if (char.IsDigit(c) || c == '.' || c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '(' || c == ')' || c == '^' || c == '!')
                         InsertText(c.ToString());
                 }
             }
@@ -471,6 +483,7 @@ namespace KSPScientificCalculator
                 if (Match('*')) value *= ParsePower();
                 else if (Match('/')) value /= ParsePower();
                 else if (Match('%')) value %= ParsePower();
+                else if (Match('!')) value = Factorial(value);
                 else break;
             }
             return value;
@@ -518,6 +531,17 @@ namespace KSPScientificCalculator
             return ParseNumber();
         }
 
+        private static readonly System.Random rng = new System.Random();
+
+        double Factorial(double arg)
+        {
+            if (arg < 0) throw new Exception("Factorial is not defined for negative numbers");
+            if (arg > 170) throw new Exception("Factorial result is too large");
+            double result = 1d;
+            for (int i = 2; i <= (int)arg; i++) result *= i;
+            return result;
+        }
+
         private double EvaluateFunction(string ident, double arg)
         {
             switch (ident)
@@ -540,6 +564,14 @@ namespace KSPScientificCalculator
                 case "ceil":
                 case "ceiling": return Math.Ceiling(arg);
                 case "round": return Math.Round(arg);
+
+                case "fact":
+                case "factorial": return Factorial(arg);
+
+                case "rand":
+                    return rng.NextDouble();
+                case "10^": return Math.Pow(10, arg);
+
                 default: throw new Exception("Unknown function: " + ident);
             }
         }
