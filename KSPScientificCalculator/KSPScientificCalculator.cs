@@ -25,6 +25,7 @@ namespace KSPScientificCalculator
         private Rect windowRect = new Rect(300f, 120f, DefaultWidth, DefaultHeight);
         private int windowId;
         private bool visible;
+        private bool kspSkin = false;
         private bool degreesMode = true;
         private bool useCompactButtons;
         private string expression = string.Empty;
@@ -87,7 +88,12 @@ namespace KSPScientificCalculator
             if (!visible)
                 return;
 
-            //GUI.skin = HighLogic.Skin;
+            SetupTooltip();
+            if (tooltip != null && tooltip.Trim().Length > 0)
+                ClickThruBlocker.GUIWindow(1234, tooltipRect, TooltipWindow, "");
+
+            if (kspSkin)
+                GUI.skin = HighLogic.Skin;
             windowRect = ClickThruBlocker.GUILayoutWindow(windowId, windowRect, DrawWindow, WINDOW_TITLE);
             ClampWindowToScreen();
         }
@@ -121,6 +127,8 @@ namespace KSPScientificCalculator
                 if (visible) toolbarControl.SetTrue(false);
                 else toolbarControl.SetFalse(false);
             }
+            SaveSettings();
+
         }
 
         private void DrawWindow(int id)
@@ -133,18 +141,32 @@ namespace KSPScientificCalculator
             DrawStatusArea();
             GUILayout.EndVertical();
             ProcessPendingActions();
+
+            if (Event.current.type == EventType.Repaint && GUI.tooltip != tooltip)
+                tooltip = GUI.tooltip;
+
             GUI.DragWindow();
         }
 
         private void DrawTopBar()
         {
-            GUILayout.BeginHorizontal();
+            if (GUI.Button(new Rect(52-30, 2, 24, 24), new GUIContent("S", "Use KSP Skin")))
+            {
+                kspSkin = !kspSkin;
+            }
+            if (GUI.Button(new Rect(52, 2, 24, 24), new GUIContent("W", useCompactButtons?"Wide":"Compact")))
+            {
+                useCompactButtons = !useCompactButtons;
+                windowRect.width = 10;
+                windowRect.height = 10;
+            }
+
+                GUILayout.BeginHorizontal();
             if (GUILayout.Button(degreesMode ? "DEG" : "RAD", GUILayout.Width(56f), GUILayout.Height(26f))) pendingDegToggle = true;
             if (GUILayout.Button("Ans", GUILayout.Width(48f), GUILayout.Height(26f))) pendingInsert = "Ans";
             if (GUILayout.Button("π", GUILayout.Width(38f), GUILayout.Height(26f))) pendingInsert = "pi";
             if (GUILayout.Button("e", GUILayout.Width(38f), GUILayout.Height(26f))) pendingInsert = "e";
             if (GUILayout.Button("±", GUILayout.Width(38f), GUILayout.Height(26f))) pendingToggleSign = true;
-            if (GUILayout.Button(useCompactButtons ? "Wide" : "Compact", GUILayout.Width(70f), GUILayout.Height(26f))) useCompactButtons = !useCompactButtons;
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("X", GUILayout.Width(28f), GUILayout.Height(26f))) pendingClose = true;
             GUILayout.EndHorizontal();
@@ -272,6 +294,42 @@ namespace KSPScientificCalculator
             GUILayout.EndVertical();
         }
 
+
+        string tooltip = "";
+        bool drawTooltip = true;
+        // Vector2 mousePosition;
+        Vector2 tooltipSize;
+        float tooltipX, tooltipY;
+        Rect tooltipRect;
+        void SetupTooltip()
+        {
+            Vector2 mousePosition;
+            mousePosition.x = Input.mousePosition.x;
+            mousePosition.y = Screen.height - Input.mousePosition.y;
+            //  Log.Info("SetupTooltip, tooltip: " + tooltip);
+            if (tooltip != null && tooltip.Trim().Length > 0)
+            {
+                tooltipSize = HighLogic.Skin.label.CalcSize(new GUIContent(tooltip));
+                tooltipX = (mousePosition.x + tooltipSize.x > Screen.width) ? (Screen.width - tooltipSize.x) : mousePosition.x;
+                tooltipY = mousePosition.y;
+                if (tooltipX < 0) tooltipX = 0;
+                if (tooltipY < 0) tooltipY = 0;
+                tooltipRect = new Rect(tooltipX - 1, tooltipY - tooltipSize.y, tooltipSize.x + 4, tooltipSize.y);
+            }
+        }
+        void TooltipWindow(int id)
+        {
+            GUI.BringWindowToFront(id);
+            GUI.Label(new Rect(2, 0, tooltipRect.width - 2, tooltipRect.height), tooltip, HighLogic.Skin.label);
+        }
+
+
+
+
+
+
+
+
         private void ProcessPendingActions()
         {
             if (pendingClose) { pendingClose = false; ToggleVisible(); }
@@ -385,6 +443,7 @@ namespace KSPScientificCalculator
                 degreesMode = ParseBool(node.GetValue("degreesMode"), true);
                 useCompactButtons = ParseBool(node.GetValue("useCompactButtons"), false);
                 visible = ParseBool(node.GetValue("visible"), false);
+                kspSkin = ParseBool(node.GetValue("kspSkin"), false);
             }
             catch (Exception ex)
             {
@@ -406,6 +465,7 @@ namespace KSPScientificCalculator
                 node.AddValue("degreesMode", degreesMode);
                 node.AddValue("useCompactButtons", useCompactButtons);
                 node.AddValue("visible", visible);
+                node.AddValue("kspSkin", kspSkin);
                 node.Save(SETTINGS_FILE);
             }
             catch (Exception ex)
